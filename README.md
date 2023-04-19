@@ -47,3 +47,6 @@ E86C4A45C1Da21f8838a1ea26Fc852BD66489ce9
 11155111
 true
 goerli
+
+# Getting start with the IC
+[The Internet Computer: Redefining the Possibilities of Decentralized Computing](https://telegra.ph/The-Internet-Computer-Redefining-the-Possibilities-of-Decentralized-Computing-04-19)
