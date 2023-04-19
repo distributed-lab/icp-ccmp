@@ -1,0 +1,16 @@
+type Result = variant { Ok : text; Err : text };
+
+service : {
+    get_erc20_redeem_signature: (
+        token: text,
+        tx_hash: text,
+        nonce: nat,
+        is_wrapped: bool,
+        network: text
+    ) -> (Result);
+    eth_address: () -> (Result);
+    add_network: (
+        networl: text,
+        contract: text
+    ) -> ();
+}

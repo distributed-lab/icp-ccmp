@@ -1,0 +1,4 @@
+[workspace]
+members = [
+    "src/bridge_core_icp_backend",
+]
