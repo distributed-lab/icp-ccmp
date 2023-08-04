@@ -63,6 +63,7 @@ const DEFAULT_MAX_RESP: u64 = 500_000;
 const RECEIVER_ABI: &[u8] = include_bytes!("../assets/ReceiverABI.json");
 const CCMP_CONTRACT_RECEIVER_METHOD: &str = "receiveMessage";
 const ECDSA_SIGN_CYCLES: u64 = 23_000_000_000;
+const EVM_ADDRESS_LENGTH: usize = 20;
 
 #[derive(Error, Debug)]
 pub enum EvmChainError {
@@ -207,7 +208,7 @@ impl Chain for EvmChain {
 
         let w3 = Web3::new(ICHttp::new(&self.rpc, Some(DEFAULT_MAX_RESP)).unwrap());
 
-        if message.receiver.len() != 20 {
+        if message.receiver.len() != EVM_ADDRESS_LENGTH {
             return Ok(());
         }
 
@@ -230,8 +231,6 @@ impl Chain for EvmChain {
         let options = Options::with(|op| {
             op.nonce = Some(tx_count);
             op.gas_price = Some(gas_price);
-            // TODO: calculate gas dynamically
-            op.gas = Some(U256::from(100_000));
         });
 
         let key_info = KeyInfo {
