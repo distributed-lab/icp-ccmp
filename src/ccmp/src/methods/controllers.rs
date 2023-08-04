@@ -1,8 +1,11 @@
 use candid::candid_method;
-use ic_cdk::{api::is_controller, update, query};
+use ic_cdk::{api::is_controller, query, update};
 use thiserror::Error;
 
-use crate::{log, types::config::{ConfigUpdate, Config}};
+use crate::{
+    log,
+    types::config::{Config, ConfigUpdate},
+};
 
 #[derive(Error, Debug)]
 pub enum ControllerError {

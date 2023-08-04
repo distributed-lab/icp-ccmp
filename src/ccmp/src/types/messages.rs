@@ -1,21 +1,24 @@
 use std::str::FromStr;
 
 use candid::CandidType;
-use ethabi::{Address, Token, Log};
+use ethabi::{Address, Log, Token};
 use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId, SignWithEcdsaArgument};
 use ic_web3_rs::signing::keccak256;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::{chains::{ChainType, Chain}, evm_chains::EvmChainError};
+use super::{
+    chains::{Chain, ChainType},
+    evm_chains::EvmChainError,
+};
 use crate::{
-    storage_get,
+    log, storage_get,
     utils::{
         encoding, format_evm_address,
         signing::{self, get_eth_v},
         UtilsError,
     },
-    STORAGE, log,
+    STORAGE,
 };
 
 #[derive(Error, Debug)]
@@ -75,9 +78,7 @@ impl Message {
                 .cloned()
         });
 
-        if chain_metadata.is_none() {
-            return None;
-        }
+        chain_metadata.as_ref()?;
 
         Some(Message {
             index,
@@ -125,13 +126,10 @@ impl Message {
         let message_hash = match chain_metadata.chain_type {
             ChainType::Evm => {
                 let message = self.encode(Encoding::AbiEncodePacked)?;
-                log!("[MESSAGE] message: 0x{}", hex::encode(&message));
                 keccak256(&message).to_vec()
             }
             _ => return Err(MessageError::UnknownChainType),
         };
-
-        log!("[MESSAGE] hash: 0x{}", hex::encode(&message_hash));
 
         let sign_args = SignWithEcdsaArgument {
             message_hash: message_hash.clone(),
@@ -157,8 +155,6 @@ impl Message {
 
         let mut message = self.clone();
         message.signature = Some(signature);
-
-        log!("[MESSAGE] signature: {}", hex::encode(&message.signature.as_ref().unwrap()));
 
         Ok(message)
     }
@@ -189,7 +185,7 @@ impl Message {
                 })?;
 
                 evm_chain.write(self).await?;
-            },
+            }
             _ => return Err(MessageError::UnknownChainType),
         }
 

@@ -1,5 +1,5 @@
-use thiserror::Error;
 use futures::future::join_all;
+use thiserror::Error;
 
 use crate::{log, STORAGE};
 
@@ -42,9 +42,10 @@ async fn write() -> Result<(), WriterError> {
     if let Err(err) = join_all(futures)
         .await
         .into_iter()
-        .collect::<Result<Vec<_>, _>>() {
-            log!("[LISTENER] WRITER: {}", err);
-        };
+        .collect::<Result<Vec<_>, _>>()
+    {
+        log!("[LISTENER] WRITER: {}", err);
+    };
 
     log!("[WRITER] finished]");
     Ok(())

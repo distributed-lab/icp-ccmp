@@ -40,7 +40,10 @@ fn init(config: Config) {
         writer::run,
     );
 
-    set_timer(Duration::from_secs(POST_INIT_PASK_DELAY), tasks::post_init::execute);
+    set_timer(
+        Duration::from_secs(POST_INIT_PASK_DELAY),
+        tasks::post_init::execute,
+    );
 }
 
 #[allow(dead_code)]

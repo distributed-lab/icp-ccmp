@@ -1,5 +1,5 @@
-use thiserror::Error;
 use futures::future::join_all;
+use thiserror::Error;
 
 use crate::{
     log, storage_get,
@@ -42,9 +42,10 @@ async fn listen() -> Result<(), ListenerError> {
     if let Err(err) = join_all(futures)
         .await
         .into_iter()
-        .collect::<Result<Vec<_>, _>>() {
-            log!("[LISTENER] error: {}", err);
-        };
+        .collect::<Result<Vec<_>, _>>()
+    {
+        log!("[LISTENER] error: {}", err);
+    };
 
     log!("[LISTENER] finished]");
 

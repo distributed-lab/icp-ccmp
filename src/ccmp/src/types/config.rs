@@ -1,7 +1,7 @@
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
 
-use crate::{storage_set, storage_get};
+use crate::{storage_get, storage_set};
 
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Config {

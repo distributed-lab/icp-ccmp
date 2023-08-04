@@ -5,11 +5,12 @@ use async_trait::async_trait;
 use candid::CandidType;
 use ethabi::{Error as EthabiError, Event, EventParam, ParamType, RawLog, Token};
 use ic_web3_rs::{
+    contract::{Contract, Options},
+    ic::pubkey_to_address,
+    ic::KeyInfo,
     transports::ICHttp,
     types::{BlockNumber, FilterBuilder, H160, H256, U256},
-    contract::{Contract, Options},
-    Error as Web3Error, Web3, ic::KeyInfo,
-    ic::pubkey_to_address,
+    Error as Web3Error, Web3,
 };
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
@@ -17,10 +18,10 @@ use thiserror::Error;
 
 use super::chains::{Chain, ChainMetadata, ChainType};
 use crate::{
-    log,
+    log, storage_get,
     types::messages::Message,
     utils::{format_evm_address, transform_processors::call_options, UtilsError},
-    STORAGE, storage_get,
+    STORAGE,
 };
 
 lazy_static! {
@@ -74,7 +75,7 @@ pub enum EvmChainError {
     #[error("chain now found")]
     ChainNotFound,
     #[error("ethabi error: {0}")]
-    Ethabi(#[from] EthabiError),    
+    Ethabi(#[from] EthabiError),
 }
 
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
@@ -174,7 +175,6 @@ impl Chain for EvmChain {
             if let Some(message) = Message::new(log, id) {
                 messages.push(message);
                 continue;
-                
             }
         }
 
@@ -186,7 +186,7 @@ impl Chain for EvmChain {
 
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
-            storage.listened_messages.append(&mut messages.into())
+            storage.listened_messages.append(&mut messages)
         });
 
         let block_number = w3
@@ -208,20 +208,16 @@ impl Chain for EvmChain {
         let w3 = Web3::new(ICHttp::new(&self.rpc, Some(DEFAULT_MAX_RESP)).unwrap());
 
         if message.receiver.len() != 20 {
-            return Ok(())
+            return Ok(());
         }
 
         let receiver = H160::from_slice(&message.receiver);
 
-        let ccmp_contract = Contract::from_json(
-            w3.eth(),
-            receiver.clone(),
-            RECEIVER_ABI,
-        )?;
+        let ccmp_contract = Contract::from_json(w3.eth(), receiver, RECEIVER_ABI)?;
 
         let tx_count = w3
             .eth()
-            .transaction_count(from.clone(), None, call_options("transform".to_string()))
+            .transaction_count(from, None, call_options("transform".to_string()))
             .await?;
 
         let mut gas_price = w3
@@ -229,7 +225,7 @@ impl Chain for EvmChain {
             .gas_price(call_options("transform".to_string()))
             .await?;
 
-        gas_price = (gas_price/10) * 12;
+        gas_price = (gas_price / 10) * 12;
 
         let options = Options::with(|op| {
             op.nonce = Some(tx_count);
@@ -254,16 +250,22 @@ impl Chain for EvmChain {
             Token::Bytes(message.signature.unwrap_or_default()),
         ];
 
-        let tx_hash = ccmp_contract.signed_call(
-            CCMP_CONTRACT_RECEIVER_METHOD,
-            &params,
-            options,
-            address,
-            key_info,
-            self.id,
-        ).await?;
+        let tx_hash = ccmp_contract
+            .signed_call(
+                CCMP_CONTRACT_RECEIVER_METHOD,
+                &params,
+                options,
+                address,
+                key_info,
+                self.id,
+            )
+            .await?;
 
-        log!("[WRITER] message sent to evm chain, id: {}, tx hash: 0x{}", message.to_chain_id, hex::encode(tx_hash.0));
+        log!(
+            "[WRITER] message sent to evm chain, id: {}, tx hash: 0x{}",
+            message.to_chain_id,
+            hex::encode(tx_hash.0)
+        );
 
         Ok(())
     }
@@ -310,12 +312,7 @@ impl EvmChainsStorage {
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
 
-            if let Some(evm_chain) = storage
-                .chains_storage
-                .evm_chains_storage
-                .0
-                .get_mut(&id)
-            {
+            if let Some(evm_chain) = storage.chains_storage.evm_chains_storage.0.get_mut(&id) {
                 evm_chain.block_number = block_number;
             }
         })

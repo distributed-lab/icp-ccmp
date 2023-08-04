@@ -1,7 +1,7 @@
-use thiserror::Error;
 use futures::future::join_all;
+use thiserror::Error;
 
-use crate::{log, STORAGE, types::messages::MessageError};
+use crate::{log, types::messages::MessageError, STORAGE};
 
 const BATCH_TO_SIGN_SIZE: usize = 10;
 
@@ -45,13 +45,11 @@ async fn sign() -> Result<(), SignerError> {
     let mut signed_messages = join_all(futures)
         .await
         .iter()
-        .filter_map(|result| {
-            match result {
-                Ok(message) => Some(message),
-                Err(err) => {
-                    log!("[SIGNER] error: {}", err);
-                    None
-                }
+        .filter_map(|result| match result {
+            Ok(message) => Some(message),
+            Err(err) => {
+                log!("[SIGNER] error: {}", err);
+                None
             }
         })
         .cloned()
@@ -64,7 +62,10 @@ async fn sign() -> Result<(), SignerError> {
         storage.signed_messages.append(&mut signed_messages)
     });
 
-    log!("[SIGNER] finished, signed messages number: {}", signed_messages_number);
+    log!(
+        "[SIGNER] finished, signed messages number: {}",
+        signed_messages_number
+    );
 
     Ok(())
 }

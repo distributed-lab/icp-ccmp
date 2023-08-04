@@ -3,7 +3,11 @@ use std::time::Duration;
 use ic_cdk::{post_upgrade, pre_upgrade};
 use ic_cdk_timers::set_timer_interval;
 
-use crate::{jobs::{listener, signer, writer}, types::Storage, STORAGE};
+use crate::{
+    jobs::{listener, signer, writer},
+    types::Storage,
+    STORAGE,
+};
 
 #[pre_upgrade]
 fn pre_upgrade() {
