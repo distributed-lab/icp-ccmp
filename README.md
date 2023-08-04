@@ -54,5 +54,5 @@ Firstly, you need to add an EVM chain to the CCMP canister. When adding EVM chai
 
 ```sh
 dfx canister call ccmp get_public_key
-dfx canister call ccmp add_evm_chain '("Sepolia", "https://sepolia.infura.io/v3/f91b77f3a27d4d698087473f32db9061", "0x2Ba3ABf217d509C6B84D327E45b73159e95967E3")'
+dfx canister call ccmp add_evm_chain '("chain_name", "rpc", "ccmp_contract_address")'
 ```
