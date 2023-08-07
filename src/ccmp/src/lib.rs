@@ -10,10 +10,11 @@ use std::{cell::RefCell, time::Duration};
 
 use candid::export_service;
 use ic_cdk::init;
-use ic_cdk_timers::{set_timer, set_timer_interval};
+use ic_cdk_timers::set_timer;
 
-use jobs::{listener, signer, writer};
 use types::{config::Config, Storage};
+
+use crate::types::job::{Job, JobType};
 
 const POST_INIT_PASK_DELAY: u64 = 5;
 
@@ -23,22 +24,19 @@ thread_local! {
 
 #[init]
 fn init(config: Config) {
-    config.apply();
+    storage_set!(key, config.key);
 
-    set_timer_interval(
-        Duration::from_secs(config.listener_interval_secs),
-        listener::run,
-    );
+    let mut listener_job = Job::new(config.listener_interval_secs, JobType::Listener);
+    let mut signer_job = Job::new(config.signer_interval_secs, JobType::Signer);
+    let mut writer_job = Job::new(config.writer_interval_secs, JobType::Writer);
 
-    set_timer_interval(
-        Duration::from_secs(config.signer_interval_secs),
-        signer::run,
-    );
+    listener_job.run();
+    signer_job.run();
+    writer_job.run();
 
-    set_timer_interval(
-        Duration::from_secs(config.writer_interval_secs),
-        writer::run,
-    );
+    storage_set!(listener_job, listener_job);
+    storage_set!(signer_job, signer_job);
+    storage_set!(writer_job, writer_job);
 
     set_timer(
         Duration::from_secs(POST_INIT_PASK_DELAY),
@@ -55,6 +53,7 @@ fn export_candid() -> String {
     __export_service()
 }
 
+// this hack is used to export candid interfaces to a candid file
 #[cfg(test)]
 mod tests {
     use super::export_candid;

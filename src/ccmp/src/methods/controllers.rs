@@ -19,6 +19,7 @@ fn update_config(config: ConfigUpdate) -> Result<(), String> {
     _update_config(config).map_err(|e| e.to_string())
 }
 
+#[inline]
 fn _update_config(config: ConfigUpdate) -> Result<(), ControllerError> {
     if !is_controller(&ic_cdk::caller()) {
         return Err(ControllerError::CallerIsNotAController);
@@ -37,6 +38,7 @@ fn get_config() -> Result<Config, String> {
     _get_config().map_err(|e| e.to_string())
 }
 
+#[inline]
 fn _get_config() -> Result<Config, ControllerError> {
     if !is_controller(&ic_cdk::caller()) {
         return Err(ControllerError::CallerIsNotAController);

@@ -34,6 +34,10 @@ async fn sign() -> Result<(), SignerError> {
 
     if messages.is_empty() {
         log!("[SIGNER] finished, no messages to sign");
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.signer_job.stop();
+        });
         return Ok(());
     }
 
@@ -59,7 +63,8 @@ async fn sign() -> Result<(), SignerError> {
 
     STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
-        storage.signed_messages.append(&mut signed_messages)
+        storage.signed_messages.append(&mut signed_messages);
+        storage.writer_job.run();
     });
 
     log!(

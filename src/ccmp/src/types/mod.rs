@@ -2,6 +2,7 @@ pub mod chains;
 pub mod config;
 pub mod evm_chains;
 pub mod messages;
+pub mod job;
 
 use candid::CandidType;
 use ic_web3_rs::ic::get_public_key;
@@ -10,8 +11,8 @@ use thiserror::Error;
 
 use crate::{storage_get, storage_set};
 use chains::ChainsStorage;
-
-use self::messages::Message;
+use messages::Message;
+use job::Job;
 
 #[derive(Error, Debug)]
 pub enum StorageError {
@@ -24,9 +25,9 @@ pub struct Storage {
     pub key: String,
     pub public_key: String,
     pub chains_storage: ChainsStorage,
-    pub listener_interval_secs: u64,
-    pub signer_interval_secs: u64,
-    pub writer_interval_secs: u64,
+    pub listener_job: Job,
+    pub signer_job: Job,
+    pub writer_job: Job,
     pub listened_messages: Vec<Message>,
     pub signed_messages: Vec<Message>,
 }

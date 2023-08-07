@@ -21,3 +21,6 @@ ic-cdk-timers = "0.4.0"
 lazy_static = "1.4.0"
 libsecp256k1 = "0.7.1"
 futures = "0.3.28"
+serde_json = "1.0.104"
+slotmap = { version = "1.0.6", features = ["serde"] }
+itertools = "0.11.0"

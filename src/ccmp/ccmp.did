@@ -8,6 +8,7 @@ type Config = record {
 };
 type ConfigUpdate = record {
   key : opt text;
+  writer_interval_secs : opt nat64;
   signer_interval_secs : opt nat64;
   listener_interval : opt nat64;
 };

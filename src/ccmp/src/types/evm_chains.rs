@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::future::Future;
 
 use async_trait::async_trait;
 use candid::CandidType;
@@ -86,6 +87,7 @@ pub struct EvmChain {
     rpc: String,
     ccmp_contract_addr: String,
     block_number: u64,
+    tx_count: u64,
 }
 
 impl EvmChain {
@@ -94,6 +96,10 @@ impl EvmChain {
         rpc: String,
         ccmp_contract_addr: String,
     ) -> Result<Self, EvmChainError> {
+        let public_key = storage_get!(public_key);
+        let canister_addr = pubkey_to_address(&hex::decode(public_key).unwrap())
+            .expect("unable to get eth address from public key");
+
         let w3 = Web3::new(ICHttp::new(&rpc, Some(DEFAULT_MAX_RESP)).unwrap());
 
         let chain_id = w3
@@ -113,13 +119,70 @@ impl EvmChain {
             .await?
             .as_u64();
 
+        let tx_count = w3
+            .eth()
+            .transaction_count(canister_addr, None, call_options("transform".to_string()))
+            .await?
+            .as_u64();
+
         Ok(Self {
             name,
             id: chain_id.as_u64(),
             rpc,
             ccmp_contract_addr: format_evm_address(ccmp_contract_addr)?,
             block_number,
+            tx_count,
         })
+    }
+
+    /// Execute a function with tx count, on failure rollback tx count
+    /// 
+    /// # Panics
+    /// 
+    /// Panics if chain with given id is not found
+    pub async fn with_tx<F, Fut, T, E>(id: u64, f: F) -> Result<T, E>
+    where 
+        F: FnOnce(u64) -> Fut,
+        Fut: Future<Output = Result<T, E>>,
+    {
+        let tx_count = STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            
+            let chains = &mut storage
+                .chains_storage
+                .evm_chains_storage
+                .0
+                .get_mut(&id)
+                .expect("chain not found");
+
+            let tx_count = chains.tx_count;
+
+            chains.tx_count += 1;
+
+            tx_count
+        });
+
+        let result = f(tx_count).await;
+
+        match result {
+            Ok(value) => Ok(value),
+            Err(err) => {
+                STORAGE.with(|storage| {
+                    let mut storage = storage.borrow_mut();
+                    
+                    let chains = &mut storage
+                        .chains_storage
+                        .evm_chains_storage
+                        .0
+                        .get_mut(&id)
+                        .expect("chain not found");
+
+                    chains.tx_count = tx_count;
+                });
+                
+                Err(err)
+            }
+        }
     }
 }
 
@@ -190,13 +253,13 @@ impl Chain for EvmChain {
             storage.listened_messages.append(&mut messages)
         });
 
-        let block_number = w3
-            .eth()
-            .block_number(call_options("transform".to_string()))
-            .await?
-            .as_u64();
-
         EvmChainsStorage::update_block_number(id, block_number);
+
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.signer_job.run();
+        });
+
         Ok(())
     }
 
@@ -216,11 +279,6 @@ impl Chain for EvmChain {
 
         let ccmp_contract = Contract::from_json(w3.eth(), receiver, RECEIVER_ABI)?;
 
-        let tx_count = w3
-            .eth()
-            .transaction_count(from, None, call_options("transform".to_string()))
-            .await?;
-
         let mut gas_price = w3
             .eth()
             .gas_price(call_options("transform".to_string()))
@@ -228,8 +286,7 @@ impl Chain for EvmChain {
 
         gas_price = (gas_price / 10) * 12;
 
-        let options = Options::with(|op| {
-            op.nonce = Some(tx_count);
+        let mut options = Options::with(|op| {
             op.gas_price = Some(gas_price);
         });
 
@@ -249,16 +306,19 @@ impl Chain for EvmChain {
             Token::Bytes(message.signature.unwrap_or_default()),
         ];
 
-        let tx_hash = ccmp_contract
-            .signed_call(
-                CCMP_CONTRACT_RECEIVER_METHOD,
-                &params,
-                options,
-                address,
-                key_info,
-                self.id,
-            )
-            .await?;
+        let tx_hash = EvmChain::with_tx(message.to_chain_id, |tx_count| async move {
+            options.nonce = Some(U256::from(tx_count));
+            ccmp_contract
+                .signed_call(
+                    CCMP_CONTRACT_RECEIVER_METHOD,
+                    &params,
+                    options,
+                    address,
+                    key_info,
+                    self.id,
+                )
+                .await
+        }).await?;
 
         log!(
             "[WRITER] message sent to evm chain, id: {}, tx hash: 0x{}",

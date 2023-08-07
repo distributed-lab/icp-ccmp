@@ -34,6 +34,7 @@ async fn add_evm_chain(
         .map_err(|e| e.to_string())
 }
 
+#[inline]
 async fn _add_evm_chain(
     name: String,
     rpc: String,
@@ -58,6 +59,7 @@ async fn remove_chain(id: u64) -> Result<(), String> {
     _remove_chain(id).await.map_err(|e| e.to_string())
 }
 
+#[inline]
 async fn _remove_chain(id: u64) -> Result<(), ChainsError> {
     if !is_controller(&ic_cdk::caller()) {
         return Err(ChainsError::CallerIsNotAController);
