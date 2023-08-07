@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::future::Future;
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use candid::CandidType;
@@ -136,18 +136,18 @@ impl EvmChain {
     }
 
     /// Execute a function with tx count, on failure rollback tx count
-    /// 
+    ///
     /// # Panics
-    /// 
+    ///
     /// Panics if chain with given id is not found
     pub async fn with_tx<F, Fut, T, E>(id: u64, f: F) -> Result<T, E>
-    where 
+    where
         F: FnOnce(u64) -> Fut,
         Fut: Future<Output = Result<T, E>>,
     {
         let tx_count = STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
-            
+
             let chains = &mut storage
                 .chains_storage
                 .evm_chains_storage
@@ -169,7 +169,7 @@ impl EvmChain {
             Err(err) => {
                 STORAGE.with(|storage| {
                     let mut storage = storage.borrow_mut();
-                    
+
                     let chains = &mut storage
                         .chains_storage
                         .evm_chains_storage
@@ -179,7 +179,7 @@ impl EvmChain {
 
                     chains.tx_count = tx_count;
                 });
-                
+
                 Err(err)
             }
         }
@@ -318,7 +318,8 @@ impl Chain for EvmChain {
                     self.id,
                 )
                 .await
-        }).await?;
+        })
+        .await?;
 
         log!(
             "[WRITER] message sent to evm chain, id: {}, tx hash: 0x{}",

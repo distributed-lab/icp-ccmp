@@ -41,7 +41,7 @@ async fn write() -> Result<(), WriterError> {
 
     let futures = messages
         .into_iter()
-        .group_by(|msg| msg.to_chain_id.clone())
+        .group_by(|msg| msg.to_chain_id)
         .into_iter()
         .map(|(_, group)| {
             let group = group.collect::<Vec<_>>();

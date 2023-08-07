@@ -1,8 +1,8 @@
 pub mod chains;
 pub mod config;
 pub mod evm_chains;
-pub mod messages;
 pub mod job;
+pub mod messages;
 
 use candid::CandidType;
 use ic_web3_rs::ic::get_public_key;
@@ -11,8 +11,8 @@ use thiserror::Error;
 
 use crate::{storage_get, storage_set};
 use chains::ChainsStorage;
-use messages::Message;
 use job::Job;
+use messages::Message;
 
 #[derive(Error, Debug)]
 pub enum StorageError {

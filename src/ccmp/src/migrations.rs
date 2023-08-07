@@ -1,16 +1,12 @@
 use ic_cdk::{post_upgrade, pre_upgrade};
 
-use crate::{
-    types::Storage,
-    STORAGE,
-};
+use crate::{types::Storage, STORAGE};
 
 #[pre_upgrade]
 fn pre_upgrade() {
     let storage = STORAGE.with(|s| s.take());
 
-    ic_cdk::storage::stable_save((storage,))
-        .expect("Failed to save storage before upgrade");
+    ic_cdk::storage::stable_save((storage,)).expect("Failed to save storage before upgrade");
 }
 
 #[post_upgrade]

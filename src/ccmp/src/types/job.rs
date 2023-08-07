@@ -1,9 +1,9 @@
 use std::time::Duration;
 
-use ic_cdk_timers::{TimerId, set_timer_interval, clear_timer};
+use ic_cdk_timers::{clear_timer, set_timer_interval, TimerId};
 
-use serde::{Deserialize, Serialize};
 use candid::CandidType;
+use serde::{Deserialize, Serialize};
 
 use crate::jobs::{listener, signer, writer};
 

@@ -38,17 +38,23 @@ impl ConfigUpdate {
 
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
-            
+
             if let Some(listener_interval) = &self.listener_interval {
-                storage.listener_job.update_interval_secs(*listener_interval);
+                storage
+                    .listener_job
+                    .update_interval_secs(*listener_interval);
             }
-            
+
             if let Some(signer_interval_secs) = &self.signer_interval_secs {
-                storage.signer_job.update_interval_secs(*signer_interval_secs);
+                storage
+                    .signer_job
+                    .update_interval_secs(*signer_interval_secs);
             }
 
             if let Some(writer_interval_secs) = &self.writer_interval_secs {
-                storage.writer_job.update_interval_secs(*writer_interval_secs);
+                storage
+                    .writer_job
+                    .update_interval_secs(*writer_interval_secs);
             }
         });
     }
