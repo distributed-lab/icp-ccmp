@@ -43,8 +43,8 @@ Atomic Execution: CCMP guarantees atomicity during message execution, meaning th
 ## Deploy
 
 ```sh
-dfx start --clean --backround
-DEPLOY_ARGS=$(didc encode '(record {key="dfx_test_key"; listener_interval_secs=60:nat64; signer_interval_secs=60:nat64; writer_interval_secs=60:nat64})')
+dfx start --clean --background
+DEPLOY_ARGS=$(didc encode '(record {key="dfx_test_key"; signer_interval_secs=60:nat64; writer_interval_secs=60:nat64})')
 dfx deploy --argument-type raw --argument $DEPLOY_ARGS ccmp
 ```
 
@@ -53,6 +53,8 @@ dfx deploy --argument-type raw --argument $DEPLOY_ARGS ccmp
 Firstly, you need to add an EVM chain to the CCMP canister. When adding EVM chains, you need to provide the address of a ccmp contract, which is deployed on the EVM chain. An example of a ccmp contract can be found in `contracts/evm/`. There you can also find an example of a receiver contract. After adding, you can send messages using the `sendMessage` method.
 
 ```sh
+dfx canister call ccmp add_evm_chain '("Sepolia", "https://sepolia.infura.io/v3/f91b77f3a27d4d698087473f32db9061")'
 dfx canister call ccmp get_public_key
-dfx canister call ccmp add_evm_chain '("chain_name", "https://sepolia.infura.io/v3/f91b77f3a27d4d698087473f32db9061", "0x0383FB2f9a2d1e804C4d07e1870395a06Ddc3580")'
+dfx canister call ccmp add_balance
+dfx canister call ccmp get_balance
 ```

@@ -6,7 +6,6 @@ use crate::{storage_get, storage_set, STORAGE};
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
 pub struct Config {
     pub key: String,
-    pub listener_interval_secs: u64,
     pub signer_interval_secs: u64,
     pub writer_interval_secs: u64,
 }
@@ -15,7 +14,6 @@ impl Config {
     pub fn get() -> Config {
         Config {
             key: storage_get!(key),
-            listener_interval_secs: storage_get!(listener_job).interval_secs,
             signer_interval_secs: storage_get!(signer_job).interval_secs,
             writer_interval_secs: storage_get!(writer_job).interval_secs,
         }
@@ -25,7 +23,6 @@ impl Config {
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
 pub struct ConfigUpdate {
     key: Option<String>,
-    listener_interval: Option<u64>,
     signer_interval_secs: Option<u64>,
     writer_interval_secs: Option<u64>,
 }
@@ -38,12 +35,6 @@ impl ConfigUpdate {
 
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
-
-            if let Some(listener_interval) = &self.listener_interval {
-                storage
-                    .listener_job
-                    .update_interval_secs(*listener_interval);
-            }
 
             if let Some(signer_interval_secs) = &self.signer_interval_secs {
                 storage

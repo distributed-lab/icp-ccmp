@@ -1,32 +1,64 @@
+type Balance = record {
+  chains_data : vec record { nat64; ChainEntry };
+  public_key : text;
+  cycles : nat;
+};
+type ChainEntry = record {
+  last_block : nat64;
+  tokens : nat;
+  nonce : vec nat64;
+  tx_count : nat64;
+};
 type ChainMetadata = record { name : text; chain_type : ChainType };
 type ChainType = variant { Evm; Unknown };
 type Config = record {
   key : text;
   writer_interval_secs : nat64;
   signer_interval_secs : nat64;
-  listener_interval_secs : nat64;
 };
 type ConfigUpdate = record {
   key : opt text;
   writer_interval_secs : opt nat64;
   signer_interval_secs : opt nat64;
-  listener_interval : opt nat64;
 };
-type Result = variant { Ok : nat64; Err : text };
-type Result_1 = variant { Ok : ChainMetadata; Err : text };
-type Result_2 = variant {
+type Daemon = record {
+  id : nat64;
+  timer_id : text;
+  creator : principal;
+  listen_chain_id : nat64;
+  interval : Duration;
+  is_active : bool;
+  ccmp_contract : text;
+};
+type Duration = record { secs : nat64; nanos : nat32 };
+type RegisterDaemonArgs = record {
+  listen_chain_id : nat64;
+  interval_in_secs : nat64;
+  ccmp_contract : text;
+};
+type Result = variant { Ok : text; Err : text };
+type Result_1 = variant { Ok : nat64; Err : text };
+type Result_2 = variant { Ok; Err : text };
+type Result_3 = variant {
   Ok : vec record { nat64; ChainMetadata };
   Err : text;
 };
-type Result_3 = variant { Ok : Config; Err : text };
-type Result_4 = variant { Ok : text; Err : text };
-type Result_5 = variant { Ok; Err : text };
+type Result_4 = variant { Ok : Config; Err : text };
 service : {
-  add_evm_chain : (text, text, text) -> (Result);
-  get_chain_metadata : (nat64) -> (Result_1) query;
-  get_chains_metadata : () -> (Result_2) query;
-  get_config : () -> (Result_3) query;
-  get_public_key : () -> (Result_4);
-  remove_chain : (nat64) -> (Result_5);
-  update_config : (ConfigUpdate) -> (Result_5);
+  add_balance : () -> (Result);
+  add_cycles : () -> ();
+  add_evm_chain : (text, text) -> (Result_1);
+  add_tokens_to_evm_chain : (text, nat64) -> (Result_2);
+  get_balance : () -> (opt Balance) query;
+  get_chain_metadata : (nat64) -> (opt ChainMetadata) query;
+  get_chains_metadata : () -> (Result_3) query;
+  get_config : () -> (Result_4) query;
+  get_daemon : (nat64) -> (opt Daemon) query;
+  get_daemons : () -> (vec Daemon) query;
+  get_public_key : () -> (Result);
+  register_daemon : (RegisterDaemonArgs) -> (Result_1);
+  remove_chain : (nat64) -> (Result_2);
+  start_daemon : (nat64) -> (Result_2);
+  stop_daemon : (nat64) -> (Result_2);
+  update_config : (ConfigUpdate) -> (Result_2);
 }

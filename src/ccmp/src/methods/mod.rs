@@ -1,5 +1,7 @@
+mod balances;
 mod chains;
 mod controllers;
+pub mod daemons;
 mod transforms;
 
 use candid::candid_method;

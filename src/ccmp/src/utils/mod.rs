@@ -4,6 +4,9 @@ pub mod transform_processors;
 
 use std::num::ParseIntError;
 
+use candid::Nat;
+use ic_web3_rs::types::U256;
+use num_bigint::BigUint;
 use sha3::{Digest, Keccak256};
 use thiserror::Error;
 
@@ -44,4 +47,11 @@ pub fn format_evm_address(addr: String) -> Result<String, UtilsError> {
     }
 
     Ok(format!("0x{checksum}"))
+}
+
+pub fn u256_to_nat(num: U256) -> Nat {
+    let mut buffer = vec![];
+    num.to_big_endian(&mut buffer);
+
+    Nat(BigUint::from_bytes_be(&buffer))
 }

@@ -26,15 +26,12 @@ thread_local! {
 fn init(config: Config) {
     storage_set!(key, config.key);
 
-    let mut listener_job = Job::new(config.listener_interval_secs, JobType::Listener);
     let mut signer_job = Job::new(config.signer_interval_secs, JobType::Signer);
     let mut writer_job = Job::new(config.writer_interval_secs, JobType::Writer);
 
-    listener_job.run();
     signer_job.run();
     writer_job.run();
 
-    storage_set!(listener_job, listener_job);
     storage_set!(signer_job, signer_job);
     storage_set!(writer_job, writer_job);
 
@@ -46,8 +43,9 @@ fn init(config: Config) {
 
 #[allow(dead_code)]
 fn export_candid() -> String {
+    use methods::daemons::RegisterDaemonArgs;
     use std::collections::HashMap;
-    use types::{chains::ChainMetadata, config::ConfigUpdate};
+    use types::{balances::Balance, chains::ChainMetadata, config::ConfigUpdate, daemons::Daemon};
 
     export_service!();
     __export_service()

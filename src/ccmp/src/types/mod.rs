@@ -1,5 +1,7 @@
+pub mod balances;
 pub mod chains;
 pub mod config;
+pub mod daemons;
 pub mod evm_chains;
 pub mod job;
 pub mod messages;
@@ -10,9 +12,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{storage_get, storage_set};
+use balances::BalancesStorage;
 use chains::ChainsStorage;
 use job::Job;
 use messages::Message;
+
+use self::daemons::DaemonsStorage;
 
 #[derive(Error, Debug)]
 pub enum StorageError {
@@ -25,11 +30,12 @@ pub struct Storage {
     pub key: String,
     pub public_key: String,
     pub chains_storage: ChainsStorage,
-    pub listener_job: Job,
     pub signer_job: Job,
     pub writer_job: Job,
     pub listened_messages: Vec<Message>,
     pub signed_messages: Vec<Message>,
+    pub balances_storage: BalancesStorage,
+    pub daemon_storage: DaemonsStorage,
 }
 
 impl Storage {

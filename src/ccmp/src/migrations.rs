@@ -14,11 +14,9 @@ fn post_upgrade() {
     let (mut storage,): (Storage,) =
         ic_cdk::storage::stable_restore().expect("Failed to restore storage after upgrade");
 
-    storage.listener_job.stop();
     storage.signer_job.stop();
     storage.writer_job.stop();
 
-    storage.listener_job.run();
     storage.signer_job.run();
     storage.writer_job.run();
 

@@ -5,9 +5,8 @@ use candid::CandidType;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::STORAGE;
-
 use super::{evm_chains::EvmChainsStorage, messages::Message};
+use crate::STORAGE;
 
 #[derive(Error, Debug)]
 pub enum ChainsStorageError {
@@ -21,11 +20,10 @@ pub enum ChainsStorageError {
 pub trait Chain {
     type Error;
 
-    async fn listen(id: u64) -> Result<(), Self::Error>;
     async fn write(&self, message: Message) -> Result<(), Self::Error>;
 }
 
-#[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
+#[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone, PartialEq)]
 pub enum ChainType {
     #[default]
     Unknown,
@@ -73,16 +71,14 @@ impl ChainsStorage {
         })
     }
 
-    pub fn get_chain_metadata(id: u64) -> Result<ChainMetadata, ChainsStorageError> {
+    pub fn get_chain_metadata(id: u64) -> Option<ChainMetadata> {
         STORAGE.with(|storage| {
-            let storage = storage.borrow();
-            let chain_metadata = storage
+            storage
+                .borrow()
                 .chains_storage
                 .chains_metadata
                 .get(&id)
-                .ok_or(ChainsStorageError::ChainNotFound)?;
-
-            Ok(chain_metadata.clone())
+                .cloned()
         })
     }
 

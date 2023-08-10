@@ -24,27 +24,17 @@ enum ChainsError {
 
 #[candid_method(update)]
 #[update]
-async fn add_evm_chain(
-    name: String,
-    rpc: String,
-    ccmp_contract_addr: String,
-) -> Result<u64, String> {
-    _add_evm_chain(name, rpc, ccmp_contract_addr)
-        .await
-        .map_err(|e| e.to_string())
+async fn add_evm_chain(name: String, rpc: String) -> Result<u64, String> {
+    _add_evm_chain(name, rpc).await.map_err(|e| e.to_string())
 }
 
 #[inline]
-async fn _add_evm_chain(
-    name: String,
-    rpc: String,
-    ccmp_contract_addr: String,
-) -> Result<u64, ChainsError> {
+async fn _add_evm_chain(name: String, rpc: String) -> Result<u64, ChainsError> {
     if !is_controller(&ic_cdk::caller()) {
         return Err(ChainsError::CallerIsNotAController);
     }
 
-    let evm_chain = EvmChain::new(name, rpc, ccmp_contract_addr).await?;
+    let evm_chain = EvmChain::new(name, rpc).await?;
 
     let id = EvmChainsStorage::add(evm_chain);
 
@@ -74,8 +64,8 @@ async fn _remove_chain(id: u64) -> Result<(), ChainsError> {
 
 #[candid_method(query)]
 #[query]
-fn get_chain_metadata(id: u64) -> Result<ChainMetadata, String> {
-    ChainsStorage::get_chain_metadata(id).map_err(|e| e.to_string())
+fn get_chain_metadata(id: u64) -> Option<ChainMetadata> {
+    ChainsStorage::get_chain_metadata(id)
 }
 
 #[candid_method(query)]

@@ -53,10 +53,11 @@ pub struct Message {
     pub message: Vec<u8>,
     pub receiver: Vec<u8>,
     pub signature: Option<Vec<u8>>,
+    pub daemon_id: u64,
 }
 
 impl Message {
-    pub fn new(log: Log, from_chain_id: u64) -> Option<Self> {
+    pub fn new(log: Log, from_chain_id: u64, daemon_id: u64) -> Option<Self> {
         let index = log.params[0].clone().value.into_uint().unwrap().as_u64();
         let ccmp_chain_id = log.params[1].clone().value.into_uint().unwrap().as_u64();
         let sender = log.params[2]
@@ -87,6 +88,7 @@ impl Message {
             sender,
             message,
             receiver,
+            daemon_id,
             ..Default::default()
         })
     }
