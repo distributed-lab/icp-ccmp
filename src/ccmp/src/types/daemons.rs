@@ -16,7 +16,7 @@ use lazy_static::lazy_static;
 use scopeguard::defer;
 use serde::{Deserialize, Serialize};
 
-use crate::{log, utils::transform_processors::call_options, STORAGE};
+use crate::{log, utils::transform_processors::call_options, STORAGE, storage_get, types::chains::{ChainsStorage, ChainType}};
 
 use super::{balances::BalancesStorage, evm_chains::EvmChainsStorage, messages::Message};
 
@@ -119,6 +119,7 @@ impl DaemonsStorage {
             };
 
             storage.daemon_storage.daemons.insert(id, daemon);
+            storage.daemon_storage.daemon_count += 1;
 
             id
         })
@@ -131,16 +132,58 @@ impl DaemonsStorage {
             storage.daemon_storage.daemons.get(&id).cloned()
         })
     }
+
+    pub fn start_active_daemons() {
+        for (id, daemon) in storage_get!(daemon_storage).daemons.iter() {
+            if daemon.is_active {
+                Daemon::start(*id);
+            }
+        }
+    }
 }
 
 impl Daemon {
     pub async fn listen(id: u64) -> Result<(), DaemonsError> {
         let daemon = DaemonsStorage::get_daemon(id).expect("Daemon not found");
 
+        let start_cycles = canister_balance();
         defer! {
-            Self::collect_cycles(id, canister_balance(), daemon.creator)
+            Self::collect_cycles(id, start_cycles, daemon.creator)
         };
 
+        let chain_metadata = ChainsStorage::get_chain_metadata(daemon.listen_chain_id)
+            .expect("Chain metadata not found");
+
+        let mut messages = match chain_metadata.chain_type {
+            ChainType::Evm => Self::listen_evm_chain(&daemon).await?,
+            _ => panic!("Unsupported chain type"),
+        };
+
+        if messages.is_empty() {
+            return Ok(());
+        }
+
+        log!(
+            "[DAEMONS] listening chain finished, id: {}, produced messages number: {}",
+            id,
+            messages.len()
+        );
+
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.listened_messages.append(&mut messages)
+        });
+
+
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.signer_job.run();
+        });
+
+        Ok(())
+    }
+
+    pub async fn listen_evm_chain(daemon: &Daemon) -> Result<Vec<Message>, DaemonsError> {
         let evm_chain =
             EvmChainsStorage::get_chain(daemon.listen_chain_id).expect("EVM chain not found");
         let balance = BalancesStorage::get_balance(&daemon.creator).expect("Balance not found");
@@ -170,15 +213,15 @@ impl Daemon {
 
         if logs.is_empty() {
             log!(
-                "[LISTENER] daemon listening finished, daemon id: {}, no messages",
-                id
+                "[DAEMONS] daemon listening finished, daemon id: {}, no messages",
+                daemon.id
             );
             BalancesStorage::update_last_block(
                 &daemon.creator,
                 daemon.listen_chain_id,
                 block_number,
             );
-            return Ok(());
+            return Ok(vec![]);
         }
 
         let parsed_logs = logs
@@ -196,35 +239,19 @@ impl Daemon {
 
         let mut messages = vec![];
         for log in parsed_logs {
-            if let Some(message) = Message::new(log, id, daemon.id) {
+            if let Some(message) = Message::new(log, daemon.listen_chain_id, daemon.id) {
                 messages.push(message);
                 continue;
             }
         }
 
-        log!(
-            "[LISTENER] listening chain finished, id: {}, produced messages number: {}",
-            id,
-            messages.len()
-        );
-
-        STORAGE.with(|storage| {
-            let mut storage = storage.borrow_mut();
-            storage.listened_messages.append(&mut messages)
-        });
-
         BalancesStorage::update_last_block(&daemon.creator, daemon.listen_chain_id, block_number);
 
-        STORAGE.with(|storage| {
-            let mut storage = storage.borrow_mut();
-            storage.signer_job.run();
-        });
-
-        Ok(())
+        Ok(messages)
     }
 
     pub fn collect_cycles(id: u64, start_cycles: u64, principal: Principal) {
-        let used_cycles = start_cycles - canister_balance();
+        let used_cycles = start_cycles-canister_balance();
         BalancesStorage::reduce_cycles(&principal, Nat::from(used_cycles));
 
         let balance = BalancesStorage::get_balance(&principal).expect("Balance not found");

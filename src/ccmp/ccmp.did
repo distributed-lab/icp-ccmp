@@ -13,11 +13,13 @@ type ChainMetadata = record { name : text; chain_type : ChainType };
 type ChainType = variant { Evm; Unknown };
 type Config = record {
   key : text;
+  checker_interval_secs : nat64;
   writer_interval_secs : nat64;
   signer_interval_secs : nat64;
 };
 type ConfigUpdate = record {
   key : opt text;
+  checker_interval_secs : opt nat64;
   writer_interval_secs : opt nat64;
   signer_interval_secs : opt nat64;
 };
@@ -61,4 +63,5 @@ service : {
   start_daemon : (nat64) -> (Result_2);
   stop_daemon : (nat64) -> (Result_2);
   update_config : (ConfigUpdate) -> (Result_2);
+  update_evm_chain_rpc : (nat64, text) -> (Result_2);
 }

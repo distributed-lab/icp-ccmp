@@ -17,8 +17,8 @@ use thiserror::Error;
 use super::chains::{Chain, ChainMetadata, ChainType};
 use crate::{
     log, storage_get,
-    types::{balances::BalancesStorage, daemons::DaemonsStorage, messages::Message},
-    utils::{transform_processors::call_options, UtilsError},
+    types::{balances::BalancesStorage, daemons::DaemonsStorage, messages::Message, pending_tx::{PendingTransactionsStorage, PendingTransaction}},
+    utils::{transform_processors::call_options, UtilsError, u256_to_nat},
     STORAGE,
 };
 
@@ -38,6 +38,8 @@ pub enum EvmChainError {
     Utils(#[from] UtilsError),
     #[error("ethabi error: {0}")]
     Ethabi(#[from] EthabiError),
+    #[error("evm chain not found")]
+    EvmChainNotFound,
 }
 
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
@@ -75,7 +77,7 @@ impl Chain for EvmChain {
     type Error = EvmChainError;
 
     async fn write(&self, message: Message) -> Result<(), Self::Error> {
-        let daemon = DaemonsStorage::get_daemon(self.id).expect("daemon not found");
+        let daemon = DaemonsStorage::get_daemon(message.daemon_id).expect("daemon not found");
         let balance = BalancesStorage::get_balance(&daemon.creator).expect("balance not found");
         let from = pubkey_to_address(&hex::decode(balance.public_key).unwrap())
             .expect("unable to get eth address from public key");
@@ -91,6 +93,11 @@ impl Chain for EvmChain {
 
         let ccmp_contract = Contract::from_json(w3.eth(), receiver, RECEIVER_ABI)?;
 
+        let tx_count = w3
+            .eth()
+            .transaction_count(from, None, call_options("transform".to_string()))
+            .await?;
+
         let mut gas_price = w3
             .eth()
             .gas_price(call_options("transform".to_string()))
@@ -98,8 +105,9 @@ impl Chain for EvmChain {
 
         gas_price = (gas_price / 10) * 12;
 
-        let mut options = Options::with(|op| {
-            op.gas_price = Some(gas_price);
+        let options = Options::with(|op| {
+            op.gas_price = Some(gas_price.clone());
+            op.nonce = Some(tx_count);
         });
 
         let key_info = KeyInfo {
@@ -112,36 +120,40 @@ impl Chain for EvmChain {
             Token::Uint(U256::from(message.index)),
             Token::Uint(U256::from(message.from_chain_id)),
             Token::Uint(U256::from(message.to_chain_id)),
-            Token::Bytes(message.sender),
-            Token::Bytes(message.message),
+            Token::Bytes(message.sender.clone()),
+            Token::Bytes(message.message.clone()),
             Token::Address(receiver),
-            Token::Bytes(message.signature.unwrap_or_default()),
+            Token::Bytes(message.signature.clone().unwrap_or_default()),
         ];
 
-        let tx_hash = BalancesStorage::with_tx(
-            &daemon.creator,
-            message.to_chain_id,
-            |tx_count| async move {
-                options.nonce = Some(U256::from(tx_count));
-                ccmp_contract
-                    .signed_call(
-                        CCMP_CONTRACT_RECEIVER_METHOD,
-                        &params,
-                        options,
-                        address,
-                        key_info,
-                        self.id,
-                    )
-                    .await
-            },
+        let tx_hash = ccmp_contract.signed_call(
+            CCMP_CONTRACT_RECEIVER_METHOD,
+            &params,
+            options,
+            address,
+            key_info,
+            self.id,
         )
         .await?;
+
+        let formatted_tx_hash = hex::encode(tx_hash.0);
 
         log!(
             "[WRITER] message sent to evm chain, id: {}, tx hash: 0x{}",
             message.to_chain_id,
-            hex::encode(tx_hash.0)
+            formatted_tx_hash
         );
+
+        PendingTransactionsStorage::add(PendingTransaction::new(
+            formatted_tx_hash,
+            message,
+            u256_to_nat(gas_price)
+        ));
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+
+            storage.checker_job.run();
+        });
 
         Ok(())
     }
@@ -181,6 +193,22 @@ impl EvmChainsStorage {
                 .0
                 .get(&id)
                 .cloned()
+        })
+    }
+
+    pub fn update_rpc(id: u64, rpc: String) -> Result<(), EvmChainError> {
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+
+            let chain = storage
+                .chains_storage
+                .evm_chains_storage
+                .0
+                .get_mut(&id)
+                .ok_or_else(|| EvmChainError::EvmChainNotFound)?;
+            chain.rpc = rpc;
+
+            Ok(())
         })
     }
 }

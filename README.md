@@ -44,7 +44,7 @@ Atomic Execution: CCMP guarantees atomicity during message execution, meaning th
 
 ```sh
 dfx start --clean --background
-DEPLOY_ARGS=$(didc encode '(record {key="dfx_test_key"; signer_interval_secs=60:nat64; writer_interval_secs=60:nat64})')
+DEPLOY_ARGS=$(didc encode '(record {key="dfx_test_key"; signer_interval_secs=10:nat64; writer_interval_secs=10:nat64; checker_interval_secs=30:nat64})')
 dfx deploy --argument-type raw --argument $DEPLOY_ARGS ccmp
 ```
 
@@ -53,8 +53,12 @@ dfx deploy --argument-type raw --argument $DEPLOY_ARGS ccmp
 Firstly, you need to add an EVM chain to the CCMP canister. When adding EVM chains, you need to provide the address of a ccmp contract, which is deployed on the EVM chain. An example of a ccmp contract can be found in `contracts/evm/`. There you can also find an example of a receiver contract. After adding, you can send messages using the `sendMessage` method.
 
 ```sh
-dfx canister call ccmp add_evm_chain '("Sepolia", "https://sepolia.infura.io/v3/f91b77f3a27d4d698087473f32db9061")'
+dfx canister call ccmp add_evm_chain '("Sepolia", "https://eth-sepolia.g.alchemy.com/v2/36Anwhc7TaSmzuxnIeQ49marn1w1iftu")'
 dfx canister call ccmp get_public_key
-dfx canister call ccmp add_balance
-dfx canister call ccmp get_balance
+WALLET=$(dfx identity get-wallet)
+dfx canister call ccmp add_balance --wallet $WALLET
+dfx canister call ccmp get_balance --wallet $WALLET
+dfx canister call ccmp add_cycles --with-cycles 10000000000000 --wallet $WALLET
+dfx canister call ccmp add_tokens_to_evm_chain '("0x179a8a65a251e7cfadd2681b790046edc56630aefee2b90c76ab0992ecb2c634", 0:nat64)' --wallet $WALLET
+dfx canister call ccmp register_daemon '(record {listen_chain_id=0:nat64; interval_in_secs=60:nat64; ccmp_contract="0xe8fad0129a5aCfA30D211Bf2a2E9d8a5122B39bE"})' --wallet $WALLET
 ```

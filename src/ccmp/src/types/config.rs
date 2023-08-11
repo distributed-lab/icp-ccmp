@@ -8,6 +8,7 @@ pub struct Config {
     pub key: String,
     pub signer_interval_secs: u64,
     pub writer_interval_secs: u64,
+    pub checker_interval_secs: u64,
 }
 
 impl Config {
@@ -16,6 +17,7 @@ impl Config {
             key: storage_get!(key),
             signer_interval_secs: storage_get!(signer_job).interval_secs,
             writer_interval_secs: storage_get!(writer_job).interval_secs,
+            checker_interval_secs: storage_get!(checker_job).interval_secs,
         }
     }
 }
@@ -25,6 +27,7 @@ pub struct ConfigUpdate {
     key: Option<String>,
     signer_interval_secs: Option<u64>,
     writer_interval_secs: Option<u64>,
+    checker_interval_secs: Option<u64>,
 }
 
 impl ConfigUpdate {
@@ -46,6 +49,12 @@ impl ConfigUpdate {
                 storage
                     .writer_job
                     .update_interval_secs(*writer_interval_secs);
+            }
+
+            if let Some(checker_interval_secs) = &self.checker_interval_secs {
+                storage
+                    .checker_job
+                    .update_interval_secs(*checker_interval_secs);
             }
         });
     }

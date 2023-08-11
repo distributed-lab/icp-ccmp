@@ -1,6 +1,6 @@
 use ic_cdk::{post_upgrade, pre_upgrade};
 
-use crate::{types::Storage, STORAGE};
+use crate::{types::{Storage, daemons::DaemonsStorage}, STORAGE};
 
 #[pre_upgrade]
 fn pre_upgrade() {
@@ -16,9 +16,13 @@ fn post_upgrade() {
 
     storage.signer_job.stop();
     storage.writer_job.stop();
+    storage.checker_job.stop();
 
     storage.signer_job.run();
     storage.writer_job.run();
+    storage.checker_job.run();
 
     STORAGE.with(|s| s.replace(storage));
+
+    DaemonsStorage::start_active_daemons();
 }

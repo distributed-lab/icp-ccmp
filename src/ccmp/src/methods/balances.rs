@@ -174,6 +174,7 @@ async fn _add_tokens_to_evm_chain(tx_hash: String, chain_id: u64) -> Result<(), 
 #[query]
 fn get_balance() -> Option<Balance> {
     let caller = ic_cdk::caller();
+    ic_cdk::println!("{}", caller);
 
     BalancesStorage::get_balance(&caller)
 }

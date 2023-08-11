@@ -110,13 +110,14 @@ impl BalancesStorage {
 
     pub fn reduce_cycles(principal: &Principal, cycles: Nat) {
         STORAGE.with(|state| {
-            state
-                .borrow_mut()
+            let mut state = state.borrow_mut();
+            let balance = state
                 .balances_storage
                 .0
                 .get_mut(principal)
-                .expect("should get a balance")
-                .cycles -= cycles;
+                .expect("should get a balance");
+
+            balance.cycles -= cycles;
         });
     }
 
@@ -129,8 +130,8 @@ impl BalancesStorage {
                 .get_mut(principal)
                 .expect("should get a balance")
                 .chains_data
-                .get_mut(&chain_id)
-                .expect("should get a tokens entry");
+                .entry(chain_id)
+                .or_insert(ChainEntry::default());
 
             token_entry.tokens -= tokens;
         });
@@ -138,15 +139,15 @@ impl BalancesStorage {
 
     pub fn is_used_nonce(principal: &Principal, chain_id: u64, nonce: u64) -> bool {
         STORAGE.with(|state| {
+            let mut state = state.borrow_mut();
             state
-                .borrow()
                 .balances_storage
                 .0
-                .get(principal)
+                .get_mut(principal)
                 .expect("should get a balance")
                 .chains_data
-                .get(&chain_id)
-                .expect("should get a tokens entry")
+                .entry(chain_id)
+                .or_insert(ChainEntry::default())
                 .nonce
                 .contains(&nonce)
         })
@@ -161,8 +162,8 @@ impl BalancesStorage {
                 .get_mut(principal)
                 .expect("should get a balance")
                 .chains_data
-                .get_mut(&chain_id)
-                .expect("should get a tokens entry");
+                .entry(chain_id)
+                .or_insert(ChainEntry::default());
 
             token_entry.last_block = last_block;
         });
@@ -177,12 +178,12 @@ impl BalancesStorage {
                 .get_mut(principal)
                 .expect("should get a balance")
                 .chains_data
-                .get_mut(&chain_id)
-                .expect("should get a tokens entry");
+                .entry(chain_id)
+                .or_insert(ChainEntry::default());
 
             token_entry.tx_count += 1;
 
-            token_entry.tx_count
+            token_entry.tx_count-1
         })
     }
 
@@ -216,5 +217,19 @@ impl BalancesStorage {
         }
 
         result
+    }
+
+    pub fn add_chain_data(principal: &Principal, chain_id: u64) {
+        STORAGE.with(|state| {
+            let mut state = state.borrow_mut();
+            state
+                .balances_storage
+                .0
+                .get_mut(principal)
+                .expect("should get a balance")
+                .chains_data
+                .entry(chain_id)
+                .or_insert(ChainEntry::default());
+        });
     }
 }

@@ -5,6 +5,7 @@ pub mod daemons;
 pub mod evm_chains;
 pub mod job;
 pub mod messages;
+pub mod pending_tx;
 
 use candid::CandidType;
 use ic_web3_rs::ic::get_public_key;
@@ -17,7 +18,7 @@ use chains::ChainsStorage;
 use job::Job;
 use messages::Message;
 
-use self::daemons::DaemonsStorage;
+use self::{daemons::DaemonsStorage, pending_tx::PendingTransactionsStorage};
 
 #[derive(Error, Debug)]
 pub enum StorageError {
@@ -32,10 +33,12 @@ pub struct Storage {
     pub chains_storage: ChainsStorage,
     pub signer_job: Job,
     pub writer_job: Job,
+    pub checker_job: Job,
     pub listened_messages: Vec<Message>,
     pub signed_messages: Vec<Message>,
     pub balances_storage: BalancesStorage,
     pub daemon_storage: DaemonsStorage,
+    pub pending_txs_storage: PendingTransactionsStorage,
 }
 
 impl Storage {

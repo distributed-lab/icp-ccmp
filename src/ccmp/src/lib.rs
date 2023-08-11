@@ -28,12 +28,15 @@ fn init(config: Config) {
 
     let mut signer_job = Job::new(config.signer_interval_secs, JobType::Signer);
     let mut writer_job = Job::new(config.writer_interval_secs, JobType::Writer);
+    let mut checker_job = Job::new(config.checker_interval_secs, JobType::Checker);
 
     signer_job.run();
     writer_job.run();
+    checker_job.run();
 
     storage_set!(signer_job, signer_job);
     storage_set!(writer_job, writer_job);
+    storage_set!(checker_job, checker_job);
 
     set_timer(
         Duration::from_secs(POST_INIT_PASK_DELAY),

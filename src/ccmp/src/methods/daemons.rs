@@ -88,6 +88,8 @@ pub fn _register_daemon(args: RegisterDaemonArgs) -> Result<u64, DaemonsError> {
 
     Daemon::start(id);
 
+    BalancesStorage::add_chain_data(&caller, args.listen_chain_id);
+
     log!("[DAEMONS] registered daemon, id: {}", id);
 
     Ok(id)

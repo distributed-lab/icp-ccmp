@@ -73,3 +73,22 @@ fn get_chain_metadata(id: u64) -> Option<ChainMetadata> {
 fn get_chains_metadata() -> Result<HashMap<u64, ChainMetadata>, String> {
     ChainsStorage::get_chains_metadata().map_err(|e| e.to_string())
 }
+
+#[candid_method(update)]
+#[update]
+fn update_evm_chain_rpc(id: u64, rpc: String) -> Result<(), String> {
+    _update_evm_chain_rpc(id, rpc).map_err(|e| e.to_string())
+}
+
+#[inline]
+fn _update_evm_chain_rpc(id: u64, rpc: String) -> Result<(), ChainsError> {
+    if !is_controller(&ic_cdk::caller()) {
+        return Err(ChainsError::CallerIsNotAController);
+    }
+
+    EvmChainsStorage::update_rpc(id, rpc)?;
+
+    log!("[CHAINS] evm chain rpc updated, id: {}", id);
+
+    Ok(())
+}

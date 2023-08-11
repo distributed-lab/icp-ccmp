@@ -5,12 +5,13 @@ use ic_cdk_timers::{clear_timer, set_timer_interval, TimerId};
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
 
-use crate::jobs::{signer, writer};
+use crate::jobs::{signer, writer, checker};
 
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
 pub enum JobType {
     Signer,
     Writer,
+    Checker,
     #[default]
     Unknown,
 }
@@ -41,6 +42,7 @@ impl Job {
         let func = match self.job_type {
             JobType::Signer => signer::run,
             JobType::Writer => writer::run,
+            JobType::Checker => checker::run,
             _ => panic!("Unknown job type"),
         };
 
