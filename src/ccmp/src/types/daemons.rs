@@ -5,7 +5,7 @@ use ethabi::{
     ethereum_types::{H160, H256},
     Error as EthabiError, Event, EventParam, ParamType, RawLog,
 };
-use ic_cdk::api::canister_balance;
+use ic_cdk::api::instruction_counter;
 use ic_cdk_timers::{clear_timer, set_timer_interval, TimerId};
 use ic_web3_rs::{
     transports::ICHttp,
@@ -249,7 +249,7 @@ impl Daemon {
     }
 
     pub fn collect_cycles(id: u64, principal: Principal) {
-        let used_cycles = 0;
+        let used_cycles = (instruction_counter()/10)*4;
 
         BalancesStorage::reduce_cycles(&principal, Nat::from(used_cycles));
 
