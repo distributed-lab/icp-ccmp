@@ -145,10 +145,8 @@ impl DaemonsStorage {
 impl Daemon {
     pub async fn listen(id: u64) -> Result<(), DaemonsError> {
         let daemon = DaemonsStorage::get_daemon(id).expect("Daemon not found");
-
-        let start_cycles = canister_balance();
         defer! {
-            Self::collect_cycles(id, start_cycles, daemon.creator)
+            Self::collect_cycles(id, daemon.creator)
         };
 
         let chain_metadata = ChainsStorage::get_chain_metadata(daemon.listen_chain_id)
@@ -250,13 +248,14 @@ impl Daemon {
         Ok(messages)
     }
 
-    pub fn collect_cycles(id: u64, start_cycles: u64, principal: Principal) {
-        let used_cycles = start_cycles-canister_balance();
+    pub fn collect_cycles(id: u64, principal: Principal) {
+        let used_cycles = 0;
+
         BalancesStorage::reduce_cycles(&principal, Nat::from(used_cycles));
 
         let balance = BalancesStorage::get_balance(&principal).expect("Balance not found");
         if balance.cycles < MINIMUM_CYCLES {
-            log!("[DAEMONS] insufficient cycles, daemon stopped, id: {id},");
+            log!("[DAEMONS] insufficient cycles, principal: {}", principal);
             Self::stop(id);
         }
     }

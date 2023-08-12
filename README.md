@@ -12,11 +12,11 @@ Currently, CCMP supports communication with Ethereum Virtual Machine (EVM) chain
 
 ## How it work
 
-CCMP is a comprehensive cross-chain communication solution that operates through three distinct modules, each serving a crucial role in enabling seamless interaction between diverse blockchain networks.
+CCMP is a comprehensive cross-chain communication solution that operates through distinct modules, each serving a crucial role in enabling seamless interaction between diverse blockchain networks.
 
-### Listener
+### Daemons
 
-The Listener Module is responsible for monitoring and capturing events from various smart contracts deployed across different blockchain networks.
+The Daemons Module is responsible for monitoring and capturing events from various smart contracts deployed across different blockchain networks.
 
 Event Monitoring: The module continuously listens to predefined events from the smart contracts on the chains it supports. These events can include transaction requests, asset transfers, or any other form of inter-chain communication.
 
@@ -40,6 +40,10 @@ Message Routing: Once the target chain is determined, the Writer Module routes t
 
 Atomic Execution: CCMP guarantees atomicity during message execution, meaning that a cross-chain transaction either succeeds entirely or fails without causing any inconsistencies.
 
+### Checker
+
+The Checker Module is responsible for verifying the execution status of cross-chain messages and ensuring that the results are accurately reflected on the source chain.
+
 ## Deploy
 
 ```sh
@@ -53,12 +57,12 @@ dfx deploy --argument-type raw --argument $DEPLOY_ARGS ccmp
 Firstly, you need to add an EVM chain to the CCMP canister. When adding EVM chains, you need to provide the address of a ccmp contract, which is deployed on the EVM chain. An example of a ccmp contract can be found in `contracts/evm/`. There you can also find an example of a receiver contract. After adding, you can send messages using the `sendMessage` method.
 
 ```sh
-dfx canister call ccmp add_evm_chain '("Sepolia", "https://eth-sepolia.g.alchemy.com/v2/36Anwhc7TaSmzuxnIeQ49marn1w1iftu")'
+dfx canister call ccmp add_evm_chain '("chain_name", "rpc")'
 dfx canister call ccmp get_public_key
 WALLET=$(dfx identity get-wallet)
 dfx canister call ccmp add_balance --wallet $WALLET
 dfx canister call ccmp get_balance --wallet $WALLET
 dfx canister call ccmp add_cycles --with-cycles 10000000000000 --wallet $WALLET
-dfx canister call ccmp add_tokens_to_evm_chain '("0x179a8a65a251e7cfadd2681b790046edc56630aefee2b90c76ab0992ecb2c634", 0:nat64)' --wallet $WALLET
-dfx canister call ccmp register_daemon '(record {listen_chain_id=0:nat64; interval_in_secs=60:nat64; ccmp_contract="0xe8fad0129a5aCfA30D211Bf2a2E9d8a5122B39bE"})' --wallet $WALLET
+dfx canister call ccmp add_tokens_to_evm_chain '("tx_hash", chain_id:nat64)' --wallet $WALLET
+dfx canister call ccmp register_daemon '(record {listen_chain_id=chain_id:nat64; interval_in_secs=60:nat64; ccmp_contract="ccmp_contract_address"})' --wallet $WALLET
 ```
