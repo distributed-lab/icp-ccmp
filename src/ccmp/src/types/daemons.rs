@@ -16,11 +16,20 @@ use lazy_static::lazy_static;
 use scopeguard::defer;
 use serde::{Deserialize, Serialize};
 
-use crate::{log, utils::transform_processors::call_options, STORAGE, storage_get, types::chains::{ChainsStorage, ChainType}};
+use crate::{
+    log, storage_get,
+    types::chains::{ChainType, ChainsStorage},
+    utils::transform_processors::call_options,
+    STORAGE,
+};
 
-use super::{balances::BalancesStorage, evm_chains::EvmChainsStorage, messages::Message};
+use super::{
+    balances::BalancesStorage, evm_chains::EvmChainsStorage, messages::Message,
+    HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES,
+};
 
-const MINIMUM_CYCLES: u64 = 100_000_000_000;
+const DAEMON_HTTP_OUTCALLS_COUNT: u64 = 2;
+const DAEMON_JOB_CYCLES_COST: u64 = 2_000_000;
 
 lazy_static! {
     pub static ref MESSAGE_EVENT: Event = Event {
@@ -146,7 +155,7 @@ impl Daemon {
     pub async fn listen(id: u64) -> Result<(), DaemonsError> {
         let daemon = DaemonsStorage::get_daemon(id).expect("Daemon not found");
         defer! {
-            Self::collect_cycles(id, daemon.creator)
+            Self::collect_listening_cycles(id, daemon.creator)
         };
 
         let chain_metadata = ChainsStorage::get_chain_metadata(daemon.listen_chain_id)
@@ -171,7 +180,6 @@ impl Daemon {
             let mut storage = storage.borrow_mut();
             storage.listened_messages.append(&mut messages)
         });
-
 
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
@@ -248,8 +256,10 @@ impl Daemon {
         Ok(messages)
     }
 
-    pub fn collect_cycles(id: u64, principal: Principal) {
-        let used_cycles = (instruction_counter()/10)*4;
+    pub fn collect_listening_cycles(id: u64, principal: Principal) {
+        let mut used_cycles = (instruction_counter() / 10) * 4;
+        used_cycles += HTTP_OUTCALL_CYCLES_COST * DAEMON_HTTP_OUTCALLS_COUNT;
+        used_cycles += DAEMON_JOB_CYCLES_COST;
 
         BalancesStorage::reduce_cycles(&principal, Nat::from(used_cycles));
 

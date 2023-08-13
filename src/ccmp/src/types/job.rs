@@ -5,7 +5,7 @@ use ic_cdk_timers::{clear_timer, set_timer_interval, TimerId};
 use candid::CandidType;
 use serde::{Deserialize, Serialize};
 
-use crate::jobs::{signer, writer, checker};
+use crate::jobs::{checker, signer, writer};
 
 #[derive(CandidType, Deserialize, Serialize, Debug, Default, Clone)]
 pub enum JobType {

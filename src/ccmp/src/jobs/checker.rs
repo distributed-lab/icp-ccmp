@@ -52,14 +52,14 @@ pub async fn check() -> Result<(), CheckerError> {
             if let Err(err) = result {
                 log!("[CHECKER] error: {}", err);
                 continue;
-            }    
+            }
 
             match result {
-                Ok(is_finished)=> {
+                Ok(is_finished) => {
                     if !is_finished {
                         storage.pending_txs_storage.0.push(pending_tx.clone());
                     }
-                },
+                }
                 Err(err) => {
                     log!("[CHECKER] error: {}", err);
                     storage.pending_txs_storage.0.push(pending_tx.clone())
@@ -68,7 +68,10 @@ pub async fn check() -> Result<(), CheckerError> {
         }
     });
 
-    log!("[CHECKER] finished, pending txs checked: {}", pending_txs.len());
+    log!(
+        "[CHECKER] finished, pending txs checked: {}",
+        pending_txs.len()
+    );
 
     Ok(())
 }

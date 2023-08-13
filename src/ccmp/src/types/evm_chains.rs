@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use candid::CandidType;
+use candid::{CandidType, Nat, Principal};
 use ethabi::{Error as EthabiError, Token};
 use ic_web3_rs::{
     contract::{Contract, Options},
@@ -11,14 +11,23 @@ use ic_web3_rs::{
     types::{H160, U256},
     Error as Web3Error, Web3,
 };
+use scopeguard::defer;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::chains::{Chain, ChainMetadata, ChainType};
+use super::{
+    chains::{Chain, ChainMetadata, ChainType},
+    HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES,
+};
 use crate::{
     log, storage_get,
-    types::{balances::BalancesStorage, daemons::DaemonsStorage, messages::Message, pending_tx::{PendingTransactionsStorage, PendingTransaction}},
-    utils::{transform_processors::call_options, UtilsError, u256_to_nat},
+    types::{
+        balances::BalancesStorage,
+        daemons::{Daemon, DaemonsStorage},
+        messages::Message,
+        pending_tx::{PendingTransaction, PendingTransactionsStorage},
+    },
+    utils::{transform_processors::call_options, u256_to_nat, UtilsError},
     STORAGE,
 };
 
@@ -27,6 +36,8 @@ const RECEIVER_ABI: &[u8] = include_bytes!("../assets/ReceiverABI.json");
 const CCMP_CONTRACT_RECEIVER_METHOD: &str = "receiveMessage";
 const ECDSA_SIGN_CYCLES: u64 = 23_000_000_000;
 const EVM_ADDRESS_LENGTH: usize = 20;
+const EVM_WRITER_HTTP_OUTCALLS_COUNT: u64 = 3;
+const WRITER_JOB_EXECTUTION_COST: u64 = 2_000_000;
 
 #[derive(Error, Debug)]
 pub enum EvmChainError {
@@ -70,6 +81,20 @@ impl EvmChain {
             rpc,
         })
     }
+
+    pub fn collect_writing_cycles(id: u64, principal: Principal) {
+        let mut used_cycles = 0;
+        used_cycles += HTTP_OUTCALL_CYCLES_COST * EVM_WRITER_HTTP_OUTCALLS_COUNT;
+        used_cycles += WRITER_JOB_EXECTUTION_COST;
+
+        BalancesStorage::reduce_cycles(&principal, Nat::from(used_cycles));
+
+        let balance = BalancesStorage::get_balance(&principal).expect("Balance not found");
+        if balance.cycles < MINIMUM_CYCLES {
+            log!("[DAEMONS] insufficient cycles, principal: {}", principal);
+            Daemon::stop(id);
+        }
+    }
 }
 
 #[async_trait]
@@ -78,6 +103,9 @@ impl Chain for EvmChain {
 
     async fn write(&self, message: Message) -> Result<(), Self::Error> {
         let daemon = DaemonsStorage::get_daemon(message.daemon_id).expect("daemon not found");
+        defer! {
+            Self::collect_writing_cycles(daemon.id, daemon.creator);
+        };
         let balance = BalancesStorage::get_balance(&daemon.creator).expect("balance not found");
         let from = pubkey_to_address(&hex::decode(balance.public_key).unwrap())
             .expect("unable to get eth address from public key");
@@ -106,7 +134,7 @@ impl Chain for EvmChain {
         gas_price = (gas_price / 10) * 12;
 
         let options = Options::with(|op| {
-            op.gas_price = Some(gas_price.clone());
+            op.gas_price = Some(gas_price);
             op.nonce = Some(tx_count);
         });
 
@@ -126,15 +154,16 @@ impl Chain for EvmChain {
             Token::Bytes(message.signature.clone().unwrap_or_default()),
         ];
 
-        let tx_hash = ccmp_contract.signed_call(
-            CCMP_CONTRACT_RECEIVER_METHOD,
-            &params,
-            options,
-            address,
-            key_info,
-            self.id,
-        )
-        .await?;
+        let tx_hash = ccmp_contract
+            .signed_call(
+                CCMP_CONTRACT_RECEIVER_METHOD,
+                &params,
+                options,
+                address,
+                key_info,
+                self.id,
+            )
+            .await?;
 
         let formatted_tx_hash = hex::encode(tx_hash.0);
 
@@ -147,7 +176,7 @@ impl Chain for EvmChain {
         PendingTransactionsStorage::add(PendingTransaction::new(
             formatted_tx_hash,
             message,
-            u256_to_nat(gas_price)
+            u256_to_nat(gas_price),
         ));
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();

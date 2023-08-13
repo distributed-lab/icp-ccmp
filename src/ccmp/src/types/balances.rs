@@ -183,7 +183,7 @@ impl BalancesStorage {
 
             token_entry.tx_count += 1;
 
-            token_entry.tx_count-1
+            token_entry.tx_count - 1
         })
     }
 

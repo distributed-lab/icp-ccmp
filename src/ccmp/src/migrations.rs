@@ -1,6 +1,9 @@
 use ic_cdk::{post_upgrade, pre_upgrade};
 
-use crate::{types::{Storage, daemons::DaemonsStorage}, STORAGE};
+use crate::{
+    types::{daemons::DaemonsStorage, Storage},
+    STORAGE,
+};
 
 #[pre_upgrade]
 fn pre_upgrade() {
