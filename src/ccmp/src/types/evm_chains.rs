@@ -17,7 +17,7 @@ use thiserror::Error;
 
 use super::{
     chains::{Chain, ChainMetadata, ChainType},
-    HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES, ECDSA_SIGN_CYCLES,
+    ECDSA_SIGN_CYCLES, HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES,
 };
 use crate::{
     log, storage_get,

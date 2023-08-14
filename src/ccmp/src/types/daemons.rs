@@ -6,7 +6,7 @@ use ethabi::{
     Error as EthabiError, Event, EventParam, ParamType, RawLog,
 };
 use ic_cdk::api::instruction_counter;
-use ic_cdk_timers::{clear_timer, TimerId, set_timer};
+use ic_cdk_timers::{clear_timer, set_timer, TimerId};
 use ic_web3_rs::{
     transports::ICHttp,
     types::{BlockNumber, FilterBuilder},
@@ -214,7 +214,12 @@ impl Daemon {
             .address(vec![H160::from_str(&daemon.ccmp_contract).unwrap()])
             .build();
 
-        log!("[DAEMINS] listerning on height: {}-{}, daemon id: {}", from_block, to_block, daemon.id);
+        log!(
+            "[DAEMINS] listerning on height: {}-{}, daemon id: {}",
+            from_block,
+            to_block,
+            daemon.id
+        );
 
         let logs = w3
             .eth()
@@ -226,11 +231,7 @@ impl Daemon {
                 "[DAEMONS] daemon listening finished, daemon id: {}, no messages",
                 daemon.id
             );
-            BalancesStorage::update_last_block(
-                &daemon.creator,
-                daemon.listen_chain_id,
-                to_block,
-            );
+            BalancesStorage::update_last_block(&daemon.creator, daemon.listen_chain_id, to_block);
             return Ok(vec![]);
         }
 

@@ -7,16 +7,18 @@ use scopeguard::defer;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::{messages::Message, daemons::Daemon},
+    log,
+    types::{daemons::Daemon, messages::Message},
     utils::{transform_processors::call_options, u256_to_nat},
-    STORAGE, log,
+    STORAGE,
 };
 
 use super::{
     balances::BalancesStorage,
     chains::{ChainType, ChainsStorage},
     daemons::DaemonsStorage,
-    evm_chains::EvmChainsStorage, MINIMUM_CYCLES, HTTP_OUTCALL_CYCLES_COST,
+    evm_chains::EvmChainsStorage,
+    HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES,
 };
 
 const EVM_CHECKER_HTTP_OUTCALLS_COUNT: u64 = 1;
@@ -93,7 +95,7 @@ impl PendingTransaction {
 
         BalancesStorage::reduce_cycles(principal, Nat::from(used_cycles));
 
-        let balance = BalancesStorage::get_balance(&principal).expect("Balance not found");
+        let balance = BalancesStorage::get_balance(principal).expect("Balance not found");
         if balance.cycles < MINIMUM_CYCLES {
             log!("[DAEMONS] insufficient cycles, principal: {}", principal);
             Daemon::stop(daemon_id);

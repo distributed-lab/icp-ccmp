@@ -9,17 +9,21 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::{
+    balances::BalancesStorage,
     chains::{Chain, ChainType},
-    evm_chains::EvmChainError, daemons::DaemonsStorage, ECDSA_SIGN_CYCLES, balances::BalancesStorage, MINIMUM_CYCLES
+    daemons::DaemonsStorage,
+    evm_chains::EvmChainError,
+    ECDSA_SIGN_CYCLES, MINIMUM_CYCLES,
 };
 use crate::{
     log, storage_get,
+    types::daemons::Daemon,
     utils::{
         encoding, format_evm_address,
         signing::{self, get_eth_v},
         UtilsError,
     },
-    STORAGE, types::daemons::Daemon,
+    STORAGE,
 };
 
 const SIGNER_JOB_CYCLES_COST: u64 = 2_000_000;
@@ -177,7 +181,10 @@ impl Message {
 
         let balance = BalancesStorage::get_balance(&daemon.creator).expect("Balance not found");
         if balance.cycles < MINIMUM_CYCLES {
-            log!("[DAEMONS] insufficient cycles, principal: {}", daemon.creator);
+            log!(
+                "[DAEMONS] insufficient cycles, principal: {}",
+                daemon.creator
+            );
             Daemon::stop(daemon_id);
         }
     }
