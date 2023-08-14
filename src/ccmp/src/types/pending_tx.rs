@@ -1,22 +1,26 @@
 use std::str::FromStr;
 
-use candid::{CandidType, Nat};
+use candid::{CandidType, Nat, Principal};
 use ethabi::ethereum_types::H256;
 use ic_web3_rs::{transports::ICHttp, Error as Web3Error, Web3};
+use scopeguard::defer;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    types::messages::Message,
+    types::{messages::Message, daemons::Daemon},
     utils::{transform_processors::call_options, u256_to_nat},
-    STORAGE,
+    STORAGE, log,
 };
 
 use super::{
     balances::BalancesStorage,
     chains::{ChainType, ChainsStorage},
     daemons::DaemonsStorage,
-    evm_chains::EvmChainsStorage,
+    evm_chains::EvmChainsStorage, MINIMUM_CYCLES, HTTP_OUTCALL_CYCLES_COST,
 };
+
+const EVM_CHECKER_HTTP_OUTCALLS_COUNT: u64 = 1;
+const CHECKER_JOB_EXECTUTION_COST: u64 = 2_000_000;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PendingTransactionError {
@@ -52,6 +56,9 @@ impl PendingTransaction {
 
     pub async fn check_evm(&self) -> Result<bool, PendingTransactionError> {
         let daemon = DaemonsStorage::get_daemon(self.message.daemon_id).expect("Daemon not found");
+        defer! {
+            Self::collect_checking_cycles(daemon.id, &daemon.creator)
+        }
         let evm_chain =
             EvmChainsStorage::get_chain(self.message.to_chain_id).expect("EVM chain not found");
 
@@ -77,6 +84,20 @@ impl PendingTransaction {
         );
 
         Ok(true)
+    }
+
+    pub fn collect_checking_cycles(daemon_id: u64, principal: &Principal) {
+        let mut used_cycles = 0;
+        used_cycles += HTTP_OUTCALL_CYCLES_COST * EVM_CHECKER_HTTP_OUTCALLS_COUNT;
+        used_cycles += CHECKER_JOB_EXECTUTION_COST;
+
+        BalancesStorage::reduce_cycles(principal, Nat::from(used_cycles));
+
+        let balance = BalancesStorage::get_balance(&principal).expect("Balance not found");
+        if balance.cycles < MINIMUM_CYCLES {
+            log!("[DAEMONS] insufficient cycles, principal: {}", principal);
+            Daemon::stop(daemon_id);
+        }
     }
 }
 

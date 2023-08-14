@@ -27,8 +27,6 @@ const TX_SUCCESSFUL_STATUS: u64 = 1;
 pub enum BalancesError {
     #[error("chain storage error: {0}")]
     ChainsStorageError(#[from] ChainsStorageError),
-    #[error("chain type is not EVM")]
-    ChainTypeIsNotEVM,
     #[error("balance does not exist")]
     BalanceDoesNotExist,
     #[error("invalid tx hash: {0}")]
@@ -104,7 +102,7 @@ async fn _add_tokens_to_evm_chain(tx_hash: String, chain_id: u64) -> Result<(), 
     };
 
     let evm_chain =
-        EvmChainsStorage::get_chain(chain_id).ok_or(BalancesError::ChainTypeIsNotEVM)?;
+        EvmChainsStorage::get_chain(chain_id).ok_or(BalancesError::BalanceDoesNotExist)?;
 
     let w3 = Web3::new(ICHttp::new(&evm_chain.rpc, Some(DEFAULT_MAX_RESP)).unwrap());
 

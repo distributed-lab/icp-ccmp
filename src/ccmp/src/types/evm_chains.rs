@@ -17,7 +17,7 @@ use thiserror::Error;
 
 use super::{
     chains::{Chain, ChainMetadata, ChainType},
-    HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES,
+    HTTP_OUTCALL_CYCLES_COST, MINIMUM_CYCLES, ECDSA_SIGN_CYCLES,
 };
 use crate::{
     log, storage_get,
@@ -34,9 +34,8 @@ use crate::{
 const DEFAULT_MAX_RESP: u64 = 500_000;
 const RECEIVER_ABI: &[u8] = include_bytes!("../assets/ReceiverABI.json");
 const CCMP_CONTRACT_RECEIVER_METHOD: &str = "receiveMessage";
-const ECDSA_SIGN_CYCLES: u64 = 23_000_000_000;
 const EVM_ADDRESS_LENGTH: usize = 20;
-const EVM_WRITER_HTTP_OUTCALLS_COUNT: u64 = 3;
+const EVM_WRITER_HTTP_OUTCALLS_COUNT: u64 = 4;
 const WRITER_JOB_EXECTUTION_COST: u64 = 2_000_000;
 
 #[derive(Error, Debug)]
@@ -86,6 +85,7 @@ impl EvmChain {
         let mut used_cycles = 0;
         used_cycles += HTTP_OUTCALL_CYCLES_COST * EVM_WRITER_HTTP_OUTCALLS_COUNT;
         used_cycles += WRITER_JOB_EXECTUTION_COST;
+        used_cycles += ECDSA_SIGN_CYCLES;
 
         BalancesStorage::reduce_cycles(&principal, Nat::from(used_cycles));
 
@@ -121,11 +121,6 @@ impl Chain for EvmChain {
 
         let ccmp_contract = Contract::from_json(w3.eth(), receiver, RECEIVER_ABI)?;
 
-        let tx_count = w3
-            .eth()
-            .transaction_count(from, None, call_options("transform".to_string()))
-            .await?;
-
         let mut gas_price = w3
             .eth()
             .gas_price(call_options("transform".to_string()))
@@ -133,9 +128,8 @@ impl Chain for EvmChain {
 
         gas_price = (gas_price / 10) * 12;
 
-        let options = Options::with(|op| {
+        let mut options = Options::with(|op| {
             op.gas_price = Some(gas_price);
-            op.nonce = Some(tx_count);
         });
 
         let key_info = KeyInfo {
@@ -154,8 +148,9 @@ impl Chain for EvmChain {
             Token::Bytes(message.signature.clone().unwrap_or_default()),
         ];
 
-        let tx_hash = ccmp_contract
-            .signed_call(
+        let tx_hash = BalancesStorage::with_tx(&daemon.creator, message.to_chain_id, |tx_count| {
+            options.nonce = Some(tx_count.into());
+            ccmp_contract.signed_call(
                 CCMP_CONTRACT_RECEIVER_METHOD,
                 &params,
                 options,
@@ -163,7 +158,8 @@ impl Chain for EvmChain {
                 key_info,
                 self.id,
             )
-            .await?;
+        })
+        .await?;
 
         let formatted_tx_hash = hex::encode(tx_hash.0);
 

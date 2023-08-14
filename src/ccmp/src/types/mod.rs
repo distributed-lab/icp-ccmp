@@ -22,6 +22,7 @@ use self::{daemons::DaemonsStorage, pending_tx::PendingTransactionsStorage};
 
 pub const MINIMUM_CYCLES: u64 = 100_000_000_000;
 pub const HTTP_OUTCALL_CYCLES_COST: u64 = 49_140_000;
+pub const ECDSA_SIGN_CYCLES: u64 = 23_000_000_000;
 
 #[derive(Error, Debug)]
 pub enum StorageError {

@@ -1,15 +1,16 @@
 use std::str::FromStr;
 
-use candid::CandidType;
+use candid::{CandidType, Nat};
 use ethabi::{Address, Log, Token};
 use ic_cdk::api::management_canister::ecdsa::{EcdsaCurve, EcdsaKeyId, SignWithEcdsaArgument};
 use ic_web3_rs::signing::keccak256;
+use scopeguard::defer;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::{
     chains::{Chain, ChainType},
-    evm_chains::EvmChainError,
+    evm_chains::EvmChainError, daemons::DaemonsStorage, ECDSA_SIGN_CYCLES, balances::BalancesStorage, MINIMUM_CYCLES
 };
 use crate::{
     log, storage_get,
@@ -18,8 +19,10 @@ use crate::{
         signing::{self, get_eth_v},
         UtilsError,
     },
-    STORAGE,
+    STORAGE, types::daemons::Daemon,
 };
+
+const SIGNER_JOB_CYCLES_COST: u64 = 2_000_000;
 
 #[derive(Error, Debug)]
 pub enum MessageError {
@@ -115,6 +118,10 @@ impl Message {
     }
 
     pub async fn sign(self) -> Result<Self, MessageError> {
+        defer! {
+            Self::collect_signing_cycles(self.daemon_id);
+        };
+
         let chain_metadata = STORAGE.with(|storage| {
             storage
                 .borrow()
@@ -159,6 +166,20 @@ impl Message {
         message.signature = Some(signature);
 
         Ok(message)
+    }
+
+    pub fn collect_signing_cycles(daemon_id: u64) {
+        let daemon = DaemonsStorage::get_daemon(daemon_id).expect("daemon not found");
+        let mut used_cycles = 0;
+        used_cycles += SIGNER_JOB_CYCLES_COST + ECDSA_SIGN_CYCLES;
+
+        BalancesStorage::reduce_cycles(&daemon.creator, Nat::from(used_cycles));
+
+        let balance = BalancesStorage::get_balance(&daemon.creator).expect("Balance not found");
+        if balance.cycles < MINIMUM_CYCLES {
+            log!("[DAEMONS] insufficient cycles, principal: {}", daemon.creator);
+            Daemon::stop(daemon_id);
+        }
     }
 
     pub async fn send(self) -> Result<(), MessageError> {
