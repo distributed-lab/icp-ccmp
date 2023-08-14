@@ -1,3 +1,5 @@
+use scopeguard::defer;
+
 use crate::{log, STORAGE};
 
 const PENDING_TX_BATCH: usize = 10;
@@ -34,6 +36,13 @@ pub async fn check() -> Result<(), CheckerError> {
             storage.checker_job.stop();
         });
         return Ok(());
+    }
+
+    defer! {
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.checker_job.run();
+        });
     }
 
     let mut futures = vec![];

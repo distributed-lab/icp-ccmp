@@ -30,9 +30,9 @@ fn init(config: Config) {
     let mut writer_job = Job::new(config.writer_interval_secs, JobType::Writer);
     let mut checker_job = Job::new(config.checker_interval_secs, JobType::Checker);
 
-    signer_job.run();
-    writer_job.run();
-    checker_job.run();
+    signer_job.start();
+    writer_job.start();
+    checker_job.start();
 
     storage_set!(signer_job, signer_job);
     storage_set!(writer_job, writer_job);

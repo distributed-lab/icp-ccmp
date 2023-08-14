@@ -6,7 +6,7 @@ use ethabi::{
     Error as EthabiError, Event, EventParam, ParamType, RawLog,
 };
 use ic_cdk::api::instruction_counter;
-use ic_cdk_timers::{clear_timer, set_timer_interval, TimerId};
+use ic_cdk_timers::{clear_timer, TimerId, set_timer};
 use ic_web3_rs::{
     transports::ICHttp,
     types::{BlockNumber, FilterBuilder},
@@ -155,7 +155,8 @@ impl Daemon {
     pub async fn listen(id: u64) -> Result<(), DaemonsError> {
         let daemon = DaemonsStorage::get_daemon(id).expect("Daemon not found");
         defer! {
-            Self::collect_listening_cycles(id, daemon.creator)
+            Self::start(id);
+            Self::collect_listening_cycles(id, daemon.creator);
         };
 
         let chain_metadata = ChainsStorage::get_chain_metadata(daemon.listen_chain_id)
@@ -183,7 +184,7 @@ impl Daemon {
 
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
-            storage.signer_job.run();
+            storage.signer_job.start();
         });
 
         Ok(())
@@ -200,17 +201,20 @@ impl Daemon {
 
         let w3 = Web3::new(ICHttp::new(&evm_chain.rpc, None).unwrap());
 
-        let block_number = w3
+        let from_block = chain_data.last_block + 1;
+        let to_block = w3
             .eth()
             .block_number(call_options("transform".to_string()))
             .await?
             .as_u64();
 
         let filter = FilterBuilder::default()
-            .from_block(BlockNumber::Number(chain_data.last_block.into()))
-            .to_block(BlockNumber::Number(block_number.into()))
+            .from_block(BlockNumber::Number(from_block.into()))
+            .to_block(BlockNumber::Number(to_block.into()))
             .address(vec![H160::from_str(&daemon.ccmp_contract).unwrap()])
             .build();
+
+        log!("[DAEMINS] listerning on height: {}-{}, daemon id: {}", from_block, to_block, daemon.id);
 
         let logs = w3
             .eth()
@@ -225,7 +229,7 @@ impl Daemon {
             BalancesStorage::update_last_block(
                 &daemon.creator,
                 daemon.listen_chain_id,
-                block_number,
+                to_block,
             );
             return Ok(vec![]);
         }
@@ -251,7 +255,7 @@ impl Daemon {
             }
         }
 
-        BalancesStorage::update_last_block(&daemon.creator, daemon.listen_chain_id, block_number);
+        BalancesStorage::update_last_block(&daemon.creator, daemon.listen_chain_id, to_block);
 
         Ok(messages)
     }
@@ -277,7 +281,7 @@ impl Daemon {
 
             daemon.is_active = true;
 
-            let timer_id = set_timer_interval(daemon.interval, move || {
+            let timer_id = set_timer(daemon.interval, move || {
                 log!("[DAEMONS] starting]");
 
                 ic_cdk::spawn(async move {

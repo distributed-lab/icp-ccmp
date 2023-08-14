@@ -21,9 +21,9 @@ fn post_upgrade() {
     storage.writer_job.stop();
     storage.checker_job.stop();
 
-    storage.signer_job.run();
-    storage.writer_job.run();
-    storage.checker_job.run();
+    storage.signer_job.start();
+    storage.writer_job.start();
+    storage.checker_job.start();
 
     STORAGE.with(|s| s.replace(storage));
 

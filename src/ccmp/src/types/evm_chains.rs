@@ -177,7 +177,7 @@ impl Chain for EvmChain {
         STORAGE.with(|storage| {
             let mut storage = storage.borrow_mut();
 
-            storage.checker_job.run();
+            storage.checker_job.start();
         });
 
         Ok(())

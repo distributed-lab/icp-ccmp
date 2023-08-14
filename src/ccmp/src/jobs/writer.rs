@@ -1,5 +1,6 @@
 use futures::future::join_all;
 use itertools::Itertools;
+use scopeguard::defer;
 use thiserror::Error;
 
 use crate::{log, STORAGE};
@@ -38,6 +39,13 @@ async fn write() -> Result<(), WriterError> {
         });
         return Ok(());
     }
+
+    defer! {
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.writer_job.run();
+        })
+    };
 
     let futures = messages
         .into_iter()

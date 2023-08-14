@@ -1,4 +1,5 @@
 use futures::future::join_all;
+use scopeguard::defer;
 use thiserror::Error;
 
 use crate::{log, types::messages::MessageError, STORAGE};
@@ -41,6 +42,13 @@ async fn sign() -> Result<(), SignerError> {
         return Ok(());
     }
 
+    defer! {
+        STORAGE.with(|storage| {
+            let mut storage = storage.borrow_mut();
+            storage.signer_job.run();
+        })
+    };
+
     let mut futures = vec![];
     for message in messages {
         futures.push(message.sign());
@@ -64,7 +72,7 @@ async fn sign() -> Result<(), SignerError> {
     STORAGE.with(|storage| {
         let mut storage = storage.borrow_mut();
         storage.signed_messages.append(&mut signed_messages);
-        storage.writer_job.run();
+        storage.writer_job.start();
     });
 
     log!(
