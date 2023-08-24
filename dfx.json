@@ -1,8 +1,8 @@
 {
   "canisters": {
-    "bridge_core_icp_backend": {
-      "candid": "src/bridge_core_icp_backend/bridge_core_icp_backend.did",
-      "package": "bridge_core_icp_backend",
+    "ccmp": {
+      "candid": "src/ccmp/ccmp.did",
+      "package": "ccmp",
       "type": "rust"
     }
   },
